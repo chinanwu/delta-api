@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
@@ -24,6 +25,10 @@ type GameResponse struct {
 	To   string `json:"to"`
 }
 
+type BoolResponse struct {
+	Success bool `json:"success"`
+}
+
 // /ping
 func handlePing(rw http.ResponseWriter, req *http.Request) {
 	writeJSON(rw, Response{
@@ -34,7 +39,6 @@ func handlePing(rw http.ResponseWriter, req *http.Request) {
 // /allWords
 func handleAllWords(rw http.ResponseWriter, req *http.Request) {
 	arr, err := getWordsFromFile()
-
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
@@ -49,7 +53,6 @@ func handleWords(rw http.ResponseWriter, req *http.Request) {
 	rand.Seed(time.Now().UnixNano())
 
 	arr, err := getWordsFromFile()
-
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
@@ -68,6 +71,40 @@ func handleWords(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func handleValidate(rw http.ResponseWriter, req *http.Request) {
+	words, _ := req.URL.Query()["word"]
+	fmt.Println(words[0])
+
+	// Possible for multiple "word" to be passed in
+	//words := strings.Split(wordStr, ",")
+
+	arr, err := getWordsFromFile()
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
+
+	numFound := 0
+	expected := len(words)
+	for _, elem := range arr {
+		for _, word := range words {
+			if word == elem {
+				numFound++
+			}
+		}
+
+		if numFound == expected {
+			writeJSON(rw, BoolResponse{
+				Success: true,
+			})
+			return
+		}
+	}
+
+	writeJSON(rw, BoolResponse{
+		Success: false,
+	})
+}
+
 func main() {
 	r := mux.NewRouter()
 
@@ -75,6 +112,7 @@ func main() {
 	api.HandleFunc("/ping", handlePing).Methods(http.MethodGet)
 	api.HandleFunc("/allWords", handleAllWords).Methods(http.MethodGet)
 	api.HandleFunc("/words", handleWords).Methods(http.MethodGet)
+	api.HandleFunc("/validate", handleValidate).Methods(http.MethodGet)
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
