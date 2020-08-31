@@ -2,12 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"github.com/chinanwu/solver"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -27,6 +31,17 @@ type GameResponse struct {
 
 type BoolResponse struct {
 	Success bool `json:"success"`
+}
+
+type SolveResponse struct {
+	From     string   `json:"from"`
+	To       string   `json:"to"`
+	Solution []string `json:"solution"`
+}
+
+type HintResponse struct {
+	Hint    string `json:"hint"`
+	NumLeft int    `json:"numLeft"`
 }
 
 // /ping
@@ -73,11 +88,6 @@ func handleWords(rw http.ResponseWriter, req *http.Request) {
 
 func handleValidate(rw http.ResponseWriter, req *http.Request) {
 	words, _ := req.URL.Query()["word"]
-	fmt.Println(words[0])
-
-	// Possible for multiple "word" to be passed in
-	//words := strings.Split(wordStr, ",")
-
 	arr, err := getWordsFromFile()
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -105,7 +115,61 @@ func handleValidate(rw http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func handleScore(rw http.ResponseWriter, req *http.Request) {
+	from := req.FormValue("from")
+	to := req.FormValue("to")
+
+	// Coming soon
+
+	fmt.Println(from, to)
+}
+
+func handleSolve(rw http.ResponseWriter, req *http.Request) {
+	from := req.FormValue("from")
+	to := req.FormValue("to")
+
+	arr, err := getWordsFromFile()
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
+
+	path, _, err := solver.Solve(from, to, arr, 4)
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
+
+	writeJSON(rw, SolveResponse{
+		From:     from,
+		To:       to,
+		Solution: path,
+	})
+}
+
+func handleHint(rw http.ResponseWriter, req *http.Request) {
+	from := req.FormValue("from")
+	to := req.FormValue("to")
+
+	arr, err := getWordsFromFile()
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
+
+	path, _, err := solver.Solve(from, to, arr, 4)
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
+
+	writeJSON(rw, HintResponse{
+		Hint:    path[1],
+		NumLeft: len(path) - 2,
+	})
+}
+
 func main() {
+	log.Printf("[STARTUP] Server starting...")
+
 	r := mux.NewRouter()
 
 	api := r.PathPrefix("/api/v1").Subrouter()
@@ -113,8 +177,29 @@ func main() {
 	api.HandleFunc("/allWords", handleAllWords).Methods(http.MethodGet)
 	api.HandleFunc("/words", handleWords).Methods(http.MethodGet)
 	api.HandleFunc("/validate", handleValidate).Methods(http.MethodGet)
+	api.HandleFunc("/score", handleScore).Methods(http.MethodGet)
+	api.HandleFunc("/solve", handleSolve).Methods(http.MethodGet)
+	api.HandleFunc("/hint", handleHint).Methods(http.MethodGet)
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	// Not comfortable with this. Need to figure out how to best set allowed origins
+	// Will need to do before I deploy
+	var allowedOrigin string
+	flag.StringVar(
+		&allowedOrigin,
+		"allowedOrigin",
+		os.Getenv("ALLOWED_ORIGIN"),
+		"Allowed origin for CORS")
+	flag.Parse()
+
+	corsWrapper := cors.New(cors.Options{
+		AllowedOrigins: []string{allowedOrigin},
+		//AllowedOrigins: []string{os.Getenv("ALLOWED_ORIGIN")},
+		AllowedMethods: []string{"GET", "POST"},
+		AllowedHeaders: []string{"Content-Type", "Origin", "Accept", "*"},
+		MaxAge:         1728000, // 20 days
+	})
+
+	log.Fatal(http.ListenAndServe(":8080", corsWrapper.Handler(r)))
 }
 
 func writeJSON(rw http.ResponseWriter, resp interface{}) {
@@ -125,7 +210,12 @@ func writeJSON(rw http.ResponseWriter, resp interface{}) {
 	}
 
 	rw.Header().Set("Content-Type", "application/json")
-	rw.Write(j)
+	_, writeErr := rw.Write(j)
+
+	if writeErr != nil {
+		// Do http.Error here? Or log?
+		log.Printf("unable to write response json: " + writeErr.Error())
+	}
 }
 
 func getWordsFromFile() ([]string, error) {
