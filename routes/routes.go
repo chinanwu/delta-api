@@ -23,6 +23,7 @@ type Response struct {
 //		"message": "pong",
 // }
 func HandlePing(rw http.ResponseWriter, req *http.Request) {
+	fmt.Println("PONG")
 	writeJSON(rw, Response{
 		Message: "pong",
 	})

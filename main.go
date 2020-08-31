@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"github.com/chinanwu/delta-api/routes"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -26,21 +25,24 @@ func main() {
 
 	// Not comfortable with this. Need to figure out how to best set allowed origins
 	// Will need to do before I deploy
-	var allowedOrigin string
-	flag.StringVar(
-		&allowedOrigin,
-		"allowedOrigin",
-		os.Getenv("ALLOWED_ORIGIN"),
-		"Allowed origin for CORS")
-	flag.Parse()
+	//var allowedOrigin string
+	//flag.StringVar(
+	//	&allowedOrigin,
+	//	"allowedOrigin",
+	//	os.Getenv("ALLOWED_ORIGIN"),
+	//	"Allowed origin for CORS")
+	//flag.Parse()
+	//
+	//fmt.Println(allowedOrigin)
 
 	corsWrapper := cors.New(cors.Options{
-		AllowedOrigins: []string{allowedOrigin},
-		//AllowedOrigins: []string{os.Getenv("ALLOWED_ORIGIN")},
+		//AllowedOrigins: []string{"*"},
+		//AllowedOrigins: []string{allowedOrigin},
+		AllowedOrigins: []string{os.Getenv("ALLOWED_ORIGIN")},
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type", "Origin", "Accept", "*"},
 		MaxAge:         1728000, // 20 days
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", corsWrapper.Handler(r)))
+	log.Fatal(http.ListenAndServe(":8081", corsWrapper.Handler(r)))
 }
