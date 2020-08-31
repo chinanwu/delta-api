@@ -1,12 +1,11 @@
 # Delta-API
 
-`docker build -t delta .`
+## What?
+This is the backend API server for the Delta word game. 
 
-`docker run --env-file .env  -p 8081:8080 -it delta`
+## How do I use this?
+- `git clone` this repo!
+- Then, use terminal to navigate to this folder (make sure it's in your GOPATH), and run `go run main.go`
+- If you want to run the tests, simply run `go test` in the same location! 
 
-Where 8080 is the port for the server, and  8081 is the port of the API
-
-
-## TODO
-- Add logging
-- Catch all endpoint ? Like a 404
+I suggest you also grab a copy of Delta-UI, which is what will be hitting this.  
